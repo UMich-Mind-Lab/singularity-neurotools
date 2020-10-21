@@ -1,0 +1,85 @@
+Bootstrap: library
+From: ubuntu:18.04
+
+%setup
+    mkdir -p ${SINGULARITY_ROOTFS}/opt/mcr_install
+    mkdir -p ${SINGULARITY_ROOTFS}/opt/mcr
+    mkdir -p ${SINGULARITY_ROOTFS}/data
+
+%post
+    ### DEFINE VARIABLES
+
+    MATLAB_VERSION=R2018b
+    MCR_VERSION=v95
+    MCR_ROOT=/opt/mcr/${MCR_VERSION}
+    MCR_INHIBIT_CTF_LOCK=1
+    SPM_VERSION=12
+    CONN_DIR=/opt/conn
+    CONN_EXEC=${CONN_DIR}/conn
+    LD_LIBRARY_PATH=${MCR_ROOT}/runtime/glnxa64:${MCR_ROOT}/bin/glnxa64:${MCR_ROOT}/sys/os/glnxa64:${MCR_ROOT}/sys/opengl/lib/glnxa64:${MCR_ROOT}/extern/bin/glnxa64:${LD_LIBRARY_PATH}
+
+    echo "export MATLAB_VERSION=\"${MATLAB_VERSION}\"" >>$SINGULARITY_ENVIRONMENT
+    echo "export MATLAB_UPDATE=\"${MATLAB_UPDATE}\"" >>$SINGULARITY_ENVIRONMENT
+    echo "export MCR_VERSION=\"${MCR_VERSION}\"" >>$SINGULARITY_ENVIRONMENT
+    echo "export MCR_ROOT=\"${MCR_ROOT}\"" >>$SINGULARITY_ENVIRONMENT
+    echo "export MCR_INHIBIT_CTF_LOCK=\"${MCR_INHIBIT_CTF_LOCK}\"" >>$SINGULARITY_ENVIRONMENT
+    echo "export SPM_VERSION=\"${SPM_VERSION}\"" >>$SINGULARITY_ENVIRONMENT
+    echo "export CONN_DIR=\"${CONN_DIR}\"" >>$SINGULARITY_ENVIRONMENT
+    echo "export CONN_EXEC=\"${CONN_EXEC}\"" >>$SINGULARITY_ENVIRONMENT
+    echo "export LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH}\"" >>$SINGULARITY_ENVIRONMENT
+
+    ### ADD REPOSITORIES
+
+    echo "deb http://us.archive.ubuntu.com/ubuntu/ bionic universe" >> /etc/apt/sources.list
+
+    ### INSTALL DEPENDENCIES
+
+    apt-get update
+    apt-get install -y \
+        unzip \
+        xorg \
+        wget
+
+    ### INSTALL MATLAB MCR
+
+    cd /opt/mcr_install
+    wget https://ssd.mathworks.com/supportfiles/downloads/${MATLAB_VERSION}/deployment_files/${MATLAB_VERSION}/installers/glnxa64/MCR_${MATLAB_VERSION}_glnxa64_installer.zip
+    unzip MCR_${MATLAB_VERSION}_glnxa64_installer.zip
+    ./install -destinationFolder /opt/mcr -agreeToLicense yes -mode silent
+    cd ..
+    rm -rf mcr_install
+
+    ### INSTALL CONN/SPM PRECOMPILED
+
+    wget https://www.nitrc.org/frs/download.php/11120/conn18b_glnxa64.zip
+    unzip conn18b_glnxa64.zip -d /opt/conn
+    rm conn18b_glnxa64.zip
+    cd /opt/conn
+
+    # run spm to generate folder structure
+    ${CONN_EXEC} function exit
+
+    ### FIX PERMISSIONS
+    chmod +x ${CONN_DIR}/run_conn.sh
+    chmod +x ${CONN_EXEC}
+
+    ### LOG BUILD DATE
+    BUILD_DATE=`date`
+    echo "export BUILD_DATE=\"${BUILD_DATE}\"" >> $SINGULARITY_ENVIRONMENT
+
+%runscript
+    echo "container for SPM: SPM${SPM_VERSION} + CONN Toolbox"
+    echo "created: ${BUILD_DATE}"
+    echo ""
+    if [ $# -eq 0 ]; then
+        echo "USAGE:\n\t singularity ... run ... <container_name> <script_name> [script_inputs...]\n"
+        echo "DESCRIPTION:\n\t this container allows users to run matlab scripts functions using a compiled version of SPM/CONN Toolbox and Matlab runtime libraries. Data to be analyzed need to be bound to the \/data directory, which serves as the entry point for the container to allow for relative pathing. See official singularity documentation for assistance with singularity options/arguments.\n\n The spm_jobman_run.m file included in this repository should be sufficient for most situations, but other scripts are necessary when performing tasks outside of the batch job manager (such as using the FieldMap toolbox)."
+        echo "OPTIONS:"
+        echo "      <container_name>       filepath to this container (.sif file)"
+        echo "      <script_path>          filepath to .m script inside the container"
+        echo "      [script_inputs]        inputs for .m script, separated by spaces. When using the spm_jobman_run.m script, this would be the path to your .mat file containing the job information"
+        echo "          EX: singularity run -B /path/to/data:/data ./lib/spm12-mcr.sif /data/bin/spm_jobman_run.m /data/tmp/job_name.m\n\n"
+    else
+        ${CONN_EXEC} $@
+        exit
+    fi

@@ -1,0 +1,167 @@
+Bootstrap: library
+From: ubuntu:20.04
+
+%setup
+    mkdir -p ${SINGULARITY_ROOTFS}/opt/mrtrix3
+    mkdir -p ${SINGULARITY_ROOTFS}/opt/ANTs
+    mkdir -p ${SINGULARITY_ROOTFS}/opt/AFNI
+    mkdir -p ${SINGULARITY_ROOTFS}/opt/R
+    mkdir -p ${SINGULARITY_ROOTFS}/data
+
+%post
+    ### DEFINE VARIABLES AND EXPORT TO ENVIRONMENT
+
+    #AFNI
+
+    AFNI_DEPENDENCIES="tcsh libxt-dev freeglut3 x11proto-input-dev libexpat1 libexpat1-dev libmotif-dev libxmu-dev libxpm-dev libxp-dev libgsl-dev xfonts-base libssl-dev python-is-python3 python3-matplotlib gsl-bin netpbm gnome-tweak-tool libjpeg62 xvfb xterm vim curl evince eog libglu1-mesa-dev libglw1-mesa libxm4 build-essential libcurl4-openssl-dev libxml2-dev libgfortran-8-dev libgomp1 xfonts-100dpi r-base-dev"
+    AFNI_VERSION="20.3.00"
+    AFNI_DIR=/opt/AFNI
+    R_LIBS=/opt/R
+
+    echo "export AFNI_VERSION=\"${AFNI_VERSION}\"" >>$SINGULARITY_ENVIRONMENT
+    echo "export AFNI_DEPENDENCIES=\"${AFNI_DEPENDENCIES}\"" >>$SINGULARITY_ENVIRONMENT
+    echo "export R_LIBS=\"${R_LIBS}\"" >>$SINGULARITY_ENVIRONMENT
+
+    #FSL
+
+    FSL_DEPENDENCIES="python2-minimal libgomp1 ca-certificates libglu1-mesa libgl1-mesa-glx libsm6 libice6 libxt6 libturbojpeg libpng16-16 libxrender1 libxcursor1 libxinerama1 libfreetype6 libxft2 libxrandr2 libmng-dev libgtk2.0-0 libpulse0 libasound2 libcaca0 libopenblas-base bzip2 dc"
+    FSL_VERSION="6.0.3"
+    FSLOUTPUTTYPE=NIFTI
+    FSLDIR=/usr/local/fsl
+
+    echo "export FSL_DEPENDENCIES=\"${FSL_DEPENDENCIES}\"" >>$SINGULARITY_ENVIRONMENT
+    echo "export FSL_VERSION=\"${FSL_VERSION}\"" >>$SINGULARITY_ENVIRONMENT
+    echo "export FSLOUTPUTTYPE=\"${FSLOUTPUTTYPE}\"" >>$SINGULARITY_ENVIRONMENT
+    echo "export FSLDIR=\"${FSLDIR}\"" >>$SINGULARITY_ENVIRONMENT
+
+    #MRtrix3
+
+    MRTRIX_DEPENDENCIES="g++ python-is-python3 python3-distutils python3-numpy python3-future libeigen3-dev zlib1g-dev libqt5opengl5-dev libqt5svg5-dev libgl1-mesa-dev libfftw3-dev libtiff5-dev libpng-dev"
+    MRTRIX_VERSION="3.0.1"
+    MRTRIX_DIR="/opt/mrtrix3"
+
+    echo "export MRTRIX_DEPENDENCIES=\"${MRTRIX_DEPENDENCIES}\"" >>$SINGULARITY_ENVIRONMENT
+    echo "export MRTRIX_VERSION=\"${MRTRIX_VERSION}\"" >>$SINGULARITY_ENVIRONMENT
+    echo "export MRTRIX_DIR=\"${MRTRIX_DIR}\"" >>$SINGULARITY_ENVIRONMENT
+
+    #ANTs
+
+    ANTS_DEPENDENCIES=""
+    ANTS_VERSION=2.3.4
+    ANTSPATH="/opt/ANTs/bin/"
+
+    echo "export ANTS_DEPENDENCIES=\"${ANTS_DEPENDENCIES}\"" >>$SINGULARITY_ENVIRONMENT
+    echo "export ANTS_VERSION=\"${ANTS_VERSION}\"" >>$SINGULARITY_ENVIRONMENT
+    echo "export ANTSPATH=\"${ANTSPATH}\"" >>$SINGULARITY_ENVIRONMENT
+
+    #ICA_AROMA
+
+    ICAAROMADIR=/opt/ICA-AROMA
+    ICAAROMA_DEPENDENCIES="python3-pandas python3-numpy python3-seaborn python3-matplotlib"
+
+    echo "export ICAAROMADIR=\"${ICAAROMADIR}\"" >>$SINGULARITY_ENVIRONMENT
+    echo "export ICAAROMA_DEPENDENCIES=\"${ICAAROMA_DEPENDENCIES}\"" >> $SINGULARITY_ENVIRONMENT
+
+
+    BUILD_DEPENDENCIES="wget git cmake"
+
+    export PATH="${FSLDIR}/bin:${ANTSPATH%?}:${AFNI_DIR}:${MRTRIX_DIR}/bin:${ICAAROMADIR}:$PATH"
+    echo "export PATH=\"${FSLDIR}/bin:${ANTSPATH%?}:${AFNI_DIR}:${MRTRIX_DIR}/bin:${ICAAROMADIR}:$PATH\"" >>$SINGULARITY_ENVIRONMENT
+
+    ### ADD REPOSITORIES
+
+    echo "deb http://us.archive.ubuntu.com/ubuntu/ focal universe" >> /etc/apt/sources.list
+    echo 'deb http://cz.archive.ubuntu.com/ubuntu trusty main universe' > /etc/apt/sources.list.d/extra.list
+    ### INSTALL DEPENDENCIES
+
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get install -y ${BUILD_DEPENDENCIES} ${AFNI_DEPENDENCIES} ${MRTRIX_DEPENDENCIES} ${FSL_DEPENDENCIES} ${ANTS_DEPENDENCIES} ${ICAAROMA_DEPENDENCIES}
+
+    ### INSTALL AFNI
+
+    ln -s /usr/lib/x86_64-linux-gnu/libgsl.so.23 /usr/lib/x86_64-linux-gnu/libgsl.so.19
+    ln -s /usr/include/X11/extensions/XI.h /usr/include/X11/extensions/XInput.h
+
+    cd /opt
+    git clone https://github.com/afni/afni.git --branch AFNI_${AFNI_VERSION}
+
+    #compile from source
+    cd /opt/afni/src
+    cp Makefile.linux_openmp_64 Makefile
+
+    sed -i 's|CCOLD.*|CCOLD = $(CC)|g' Makefile
+    sed -i 's/# XLIBS/XLIBS/' Makefile
+    sed -i 's|LGIFTI    = /usr/lib64/libexpat.a|LGIFTI = -lexpat|' Makefile
+    sed -i 's|INSTALL_PREREQ|#INSTALL_PREREQ|g' Makefile
+
+    make vastness
+    make cleanest
+
+    mv /opt/afni/src/linux_openmp_64/* /opt/AFNI/
+    cd /opt/AFNI/
+    rm -rf /opt/afni
+    ./rPkgsInstall -pkgs ALL
+
+    ### INSTALL ANTs
+
+    cd ${ANTSPATH}/../..
+    git clone https://github.com/ANTsX/ANTs.git --branch v${ANTS_VERSION}
+    mkdir build
+    cd build
+    cmake --CMAKE_INSTALL_PREFIX=../ANTs ../ANTs
+    make 2>&1
+    cd ANTS-build
+    make install 2>&1
+
+    cd /opt
+    rm -rf /opt/build
+
+    ### INSTALL FSL
+
+    wget https://fsl.fmrib.ox.ac.uk/fsldownloads/fslinstaller.py
+    python2 fslinstaller.py -d /usr/local/fsl -V ${FSL_VERSION}
+    echo '/usr/local/fsl/lib' > /etc/ld.so.conf.d/fsl.conf
+    ldconfig
+    rm fslinstaller.py
+
+    ### INSTALL ICA-AROMA
+
+    cd /opt/
+    git clone https://github.com/maartenmennes/ICA-AROMA.git --branch v0.4.4-beta
+    rm -rf ICA-AROMA/.git
+    chmod +x ICA-AROMA/ICA_AROMA.py
+    chmod +x ICA-AROMA/ICA_AROMA_functions.py
+
+    ### INSTALL MRTRIX
+
+    cd /opt
+    git clone https://github.com/MRtrix3/mrtrix3.git
+    cd ${MRTRIX_DIR}
+    git checkout ${MRTRIX_VERSION}
+    ./configure -nogui -openmp
+    ./build
+    rm -rf .git tmp
+
+
+    ### CLEANUP
+
+    apt-get purge -y ${BUILD_DEPENDENCIES}
+    apt-get autoclean -y
+    apt-get autoremove -y
+    rm -rf /var/lib/apt/lists/*
+
+    ### LOG BUILD DATE
+    BUILD_DATE=`date`
+    echo "export BUILD_DATE=\"${BUILD_DATE}\"" >> $SINGULARITY_ENVIRONMENT
+
+%runscript
+    echo "AFNI ${AFNI_VERSION}"
+    echo "ANTs ${ANTS_VERSION}"
+    echo "FSL ${FSL_VERSION}"
+    echo "MRtrix3 ${MRTRIX_VERSION}"
+    echo "created: ${BUILD_DATE}"
+    echo ""
+    echo "running command: $@"
+    echo ""
+    "$@"
