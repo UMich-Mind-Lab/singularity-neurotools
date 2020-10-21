@@ -14,7 +14,7 @@ singularity build neurotools.sif neurotools.def
 
 ## Description
 
-This repository hosts container definition files for containers used in MiND lab processing pipelines. Currently, the following software would be installed in the following containers:
+This repository hosts container definition files for containers used in MiND lab processing pipelines. Details on each container are available below.
 
 ### Neurotools.def
 
@@ -44,7 +44,7 @@ singularity run -B /path/to/data:/data eddy -imain /data/path/to/data ...
 
 ##### Note on FSLOUTPUTTYPE
 
-Users can specify their `FSLOUTPUTTYPE` in the definition file, but you will run into errors with ICA_AROMA if it is not set to `NIFTI_GZ`, as ICA_AROMA expects compressed output format in its various FSL wrapper functions. It does the mrtrix3 wrappers do not have this same limitation. In the future it may be worth branching ICA_AROMA and having it read in `FSLOUTPUTTYPE`, but it's not an issue that's been too inconvenient up to this point.
+Users can specify their `FSLOUTPUTTYPE` in the definition file, but you will run into errors with ICA_AROMA if it is not set to `NIFTI_GZ`, as ICA_AROMA expects compressed output format in its various FSL wrapper functions. The mrtrix3 wrappers do not appear to have this same limitation. In the future it may be worth branching ICA_AROMA and having it read in `FSLOUTPUTTYPE`, but it's not an issue that's been too inconvenient up to this point.
 
 ### spm12.def
 
