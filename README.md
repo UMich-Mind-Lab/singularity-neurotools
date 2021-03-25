@@ -58,6 +58,12 @@ This container uses an [spm12 standalone container precompiled with CONN toolbox
 
 This container is incomplete, as I currently need to figure out how to use the conn_batch() tool in the standalone container. Hopefully this message won't be here long as I'll have the time to put this together and replace this with some better text :+1:
 
+### neuropointillist.def
+
+Container for [neuropointillist](https://ibic.github.io/neuropointillist/).
+
+The container installs explicit dependencies of neuropointillist along with `lnme`. If one wishes to use other R packages, they would need to update the `neuropointillist.def` file to include those installations. There is a general use mount point `/data`, and the runscript for the package just takes one's command line arguments after calling singularity
+
 ## TO DO:
 
 - [ ] compile standalone spm12 with CONN, [the Generalized PPI toolbox](https://www.nitrc.org/projects/gppi) myself so we ultimately use one spm based container.

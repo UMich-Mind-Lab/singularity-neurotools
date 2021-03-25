@@ -1,0 +1,34 @@
+Bootstrap: library
+From: ubuntu:20.04
+
+%setup
+  mkdir ${SINGULARITY_ROOTFS}/data
+
+%post
+  echo "deb http://us.archive.ubuntu.com/ubuntu/ focal universe" >> /etc/apt/sources.list
+
+  apt-get update
+  apt-get install -y python r-base r-base-dev wget zip language-pack-en
+
+  cd /usr/local/
+  wget https://github.com/IBIC/neuropointillist/archive/master.zip
+  unzip master.zip && rm master.zip
+  mv neuropointillist-master neuropointillist
+
+  cd neuropointillist
+  touch installRPackages.R
+  echo 'install.packages("argparse")' >> installRPackages.R
+  echo 'install.packages("RNifti")' >> installRPackages.R
+  echo 'install.packages("doParallel")' >> installRPackages.R
+  echo 'install.packages("reticulate")' >> installRPackages.R
+  echo 'install.packages("nlme")' >> installRPackages.R
+  echo 'install.packages("neuropointillist",repos=NULL,type="source")' >> installRPackages.R
+
+  Rscript installRPackages.R
+
+  echo "export PATH=\"$PATH:/usr/local/neuropointillist\"" >>$SINGULARITY_ENVIRONMENT
+  echo "export LANG=en_US.UTF-8" >>$SINGULARITY_ENVIRONMENT
+  echo "export LC_ALL=en_US.UTF-8" >> $SINGULARITY_ENVIRONMENT
+
+%runscript
+  "$@"
