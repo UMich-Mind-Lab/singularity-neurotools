@@ -20,7 +20,7 @@ This repository hosts container definition files for containers used in MiND lab
 
 Because some neuroimaging tools contain wrappers around others (e.g., mrtrix3 and ICA_AROMA), I decided to include each of these tools in one singularity container. This container has only been used in the context of the neuroimaging pipelines used in the [MiND lab](https://sites.lsa.umich.edu/mindlab/) at the University of Michigan.
 
-This container installs [FSL](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki), [AFNI](https://afni.nimh.nih.gov/), [ANTS](https://github.com/ANTsX/ANTs), [MRTRIX3](https://www.mrtrix.org/), and [ICA_AROMA](https://github.com/maartenmennes/ICA-AROMA)
+This container installs [FSL](https://fsl.fmrib.ox.ac.uk/fsl/fslwiki), [AFNI](https://afni.nimh.nih.gov/), [ANTS](https://github.com/ANTsX/ANTs), [MRTRIX3](https://www.mrtrix.org/), [ICA_AROMA](https://github.com/maartenmennes/ICA-AROMA), and [Tedana](https://tedana.readthedocs.io/en/stable/index.html)
 
 I have not tested each package individually for full functionality and this container is a work in progress. When I have time I intend to work on decreasing the container size by removing unnecessary graphical functionality or template files, but as of now the container is largely each tool installed with minimal changes.
 
